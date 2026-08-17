@@ -1,11 +1,14 @@
 FROM openresty/openresty:1.25.3.1-4-bookworm-fat
 
+# Populated automatically by buildx/BuildKit for the current --platform target
+ARG TARGETARCH
+
 # Update repo and install some utilities and prerequisites
 RUN apt-get update -y
 RUN apt-get -y install wget at procps gnupg ca-certificates jq openssl task-spooler apt-transport-https python3 python3-pip redis libssl-dev  python3-yaml python3-kubernetes python3-redis python3-requests
 
 # Install kubectl
-RUN curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+RUN curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/${TARGETARCH}/kubectl"
 RUN chmod +x ./kubectl
 RUN mv ./kubectl /usr/local/bin/kubectl
 
@@ -24,9 +27,10 @@ RUN apt-get update --fix-missing
 
 RUN for pkg in luasec lunajson lua-resty-http lyaml lua-resty-openssl; do luarocks install $pkg; done
 
-# Install kube-linter
-RUN curl -L -O https://github.com/stackrox/kube-linter/releases/download/0.6.0/kube-linter-linux.tar.gz
-RUN tar -xvf kube-linter-linux.tar.gz && rm -f kube-linter-linux.tar.gz
+# Install kube-linter (0.6.0 predates arm64 release assets, hence the version bump)
+RUN if [ "$TARGETARCH" = "arm64" ]; then KUBE_LINTER_ASSET=kube-linter-linux_arm64.tar.gz; else KUBE_LINTER_ASSET=kube-linter-linux.tar.gz; fi \
+    && curl -L -O https://github.com/stackrox/kube-linter/releases/download/v0.8.3/${KUBE_LINTER_ASSET} \
+    && tar -xvf ${KUBE_LINTER_ASSET} && rm -f ${KUBE_LINTER_ASSET}
 RUN cp kube-linter /usr/local/bin/ && chmod 775 /usr/local/bin/kube-linter
 RUN mkdir /tmp/kube-linter-pods && chmod 777 /tmp/kube-linter-pods
 
