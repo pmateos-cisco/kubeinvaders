@@ -9,3 +9,9 @@ variable "splunk_realm" {
   type        = string
   default     = "us1"
 }
+
+variable "detector_notifications" {
+  description = "Notification targets for the deployment-availability detector, e.g. [\"Email,me@example.com\"] or [\"Slack,<channel_id>,<credential_id>\"]. See the signalfx_detector docs for the full recipient syntax. Left empty by default so the detector is created without alerting anyone."
+  type        = list(string)
+  default     = []
+}

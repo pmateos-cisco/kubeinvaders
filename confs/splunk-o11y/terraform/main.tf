@@ -21,9 +21,9 @@ resource "signalfx_dashboard_group" "kubeinvaders" {
 }
 
 resource "signalfx_time_chart" "chaos_jobs" {
-  name       = "Chaos jobs"
+  name         = "Chaos jobs"
   program_text = "A = data('chaos_jobs_node_count', rollup='delta').sum(by=['node']).publish(label='A')"
-  plot_type  = "LineChart"
+  plot_type    = "LineChart"
 }
 
 resource "signalfx_single_value_chart" "killed_pods_total" {
@@ -37,24 +37,101 @@ resource "signalfx_single_value_chart" "chaos_jobs_against_nodes" {
 }
 
 resource "signalfx_time_chart" "killed_pods_by_namespace" {
-  name       = "Killed pods"
+  name         = "Killed pods"
   program_text = "A = data('deleted_namespace_pods_count', rollup='delta').sum(by=['namespace']).publish(label='A')"
-  plot_type  = "LineChart"
+  plot_type    = "LineChart"
 }
 
 resource "signalfx_list_chart" "chaos_jobs_count" {
-  name         = "Chaos jobs count"
-  program_text = "A = data('chaos_jobs_node_count').publish(label='A')"
+  name                    = "Chaos jobs count"
+  program_text            = "A = data('chaos_jobs_node_count').publish(label='A')"
+  time_range              = 900
+  secondary_visualization = "Sparkline"
+
+  viz_options {
+    label        = "A"
+    display_name = "A"
+  }
 }
 
 resource "signalfx_list_chart" "killed_pods_count" {
-  name         = "Killed pods count"
-  program_text = "A = data('deleted_namespace_pods_count').sum(by=['namespace']).publish(label='A')"
+  name                    = "Killed pods count"
+  program_text            = "A = data('deleted_namespace_pods_count').sum(by=['namespace']).publish(label='A')"
+  time_range              = 900
+  secondary_visualization = "Sparkline"
+
+  viz_options {
+    label        = "A"
+    display_name = "A"
+    color        = "orange"
+  }
+}
+
+# Detector: alerts when any deployment in the cluster has fewer available
+# pods than its desired replica count, regardless of namespace. Source
+# metrics come from the cluster-wide OTel Collector's k8s_cluster receiver
+# (kubernetes.deployment.*), not the app's own /metrics sidecar used by the
+# panels above.
+resource "signalfx_detector" "deployment_available_below_desired" {
+  name        = "PMateos - KubeInvaders - available pods below desired"
+  description = "A deployment's available pod count has stayed below its desired replica count for 5 minutes straight (e.g. CrashLoopBackOff, failed rollout, insufficient node resources to schedule). Cluster-wide, not scoped to a single namespace or deployment."
+
+  program_text = <<-EOF
+    available = data('kubernetes.deployment.available').publish(label='available', enable=False)
+    desired = data('kubernetes.deployment.desired').publish(label='desired', enable=False)
+    detect(when(available < desired, lasting='5m')).publish('Available pods below desired')
+  EOF
+
+  rule {
+    description   = "available < desired for 5m"
+    severity      = "Warning"
+    detect_label  = "Available pods below desired"
+    notifications = var.detector_notifications
+  }
+}
+
+# Detector: alerts on a burst of chaos kills - more than 5 pods deleted by
+# the KubeInvaders game within a rolling 1-minute window. Reads the app's
+# own deleted_pods_total counter (same source as the killed_pods_total panel
+# above), not the cluster-wide collector.
+resource "signalfx_detector" "pods_killed_burst" {
+  name        = "PMateos - KubeInvaders - pods killed burst"
+  description = "More than 5 pods have been killed by the KubeInvaders chaos game within a 1 minute window."
+
+  program_text = <<-EOF
+    killed = data('deleted_pods_total', rollup='delta').sum(over='1m').publish(label='killed', enable=False)
+    detect(when(killed > 5)).publish('Pods killed burst')
+  EOF
+
+  rule {
+    description   = "more than 5 pods killed in 1m"
+    severity      = "Warning"
+    detect_label  = "Pods killed burst"
+    notifications = var.detector_notifications
+  }
+}
+
+# Log Observer Connect panel - see confs/splunk-o11y/log-observer-connect.md.
+# Not producing data yet until that setup is finished; the query itself is
+# correct and will start returning results once logs are flowing.
+resource "signalfx_log_timeline" "kubeinvaders_logs" {
+  name               = "Logs"
+  program_text       = "logs(index='main', filter=field('k8s.cluster.name') == 'multi-node-cluster').count().publish()"
+  default_connection = "LOC_pmateos"
+  time_range         = 900
 }
 
 resource "signalfx_dashboard" "kubeinvaders" {
-  name            = "KubeInvaders Dashboard"
+  name            = "PMateos - KubeInvaders Dashboard"
   dashboard_group = signalfx_dashboard_group.kubeinvaders.id
+  time_range      = "-1h"
+
+  filter {
+    property       = "app"
+    values         = ["kubeinvaders"]
+    negated        = false
+    apply_if_exist = false
+  }
 
   chart {
     chart_id = signalfx_time_chart.chaos_jobs.id
@@ -102,5 +179,13 @@ resource "signalfx_dashboard" "kubeinvaders" {
     column   = 0
     width    = 10
     height   = 2
+  }
+
+  chart {
+    chart_id = signalfx_log_timeline.kubeinvaders_logs.id
+    row      = 8
+    column   = 0
+    width    = 6
+    height   = 1
   }
 }
