@@ -28,10 +28,22 @@ jobs:
     - name: Lint helm chart
       run: helm lint helm-charts/kubeinvaders
 
-    - name: Build the Docker image
-      run: |
-        docker build . --file Dockerfile --tag ${{ vars.REGISTRY_ADDRESS }}/${{ vars.REGISTRY_USERNAME }}/kubeinvaders:${{ env.IMAGE_TAG }}
-        docker push ${{ vars.REGISTRY_ADDRESS }}/${{ vars.REGISTRY_USERNAME }}/kubeinvaders:${{ env.IMAGE_TAG }}
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push the Docker image (multi-arch)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ vars.REGISTRY_ADDRESS }}/${{ vars.REGISTRY_USERNAME }}/kubeinvaders:${{ env.IMAGE_TAG }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Start minikube
       uses: medyagh/setup-minikube@latest
