@@ -58,7 +58,8 @@ end
 
 k8s_url = string.gsub(k8s_url, "/+$", "")
 
-local token = req_headers["x-k8s-token"] or req_headers["X-K8S-Token"] or tostring(os.getenv("TOKEN") or "")
+local header_token = req_headers["x-k8s-token"] or req_headers["X-K8S-Token"]
+local token = (header_token and header_token ~= "") and header_token or tostring(os.getenv("TOKEN") or "")
 if token == "" then
   ngx.status = 500
   ngx.say("Missing Kubernetes API token configuration.")
@@ -213,14 +214,12 @@ ngx.log(ngx.INFO, ok)
 ngx.log(ngx.INFO, statusCode)
 ngx.log(ngx.INFO, statusText)
 
-for k,v in ipairs(resp) do
-  decoded = json.decode(v)
-  if decoded["kind"] == "JobList" then
-    for k2,v2 in ipairs(decoded["items"]) do
-      if v2["status"]["succeeded"] == 1 and v2["metadata"]["labels"]["chaos-controller"] == "kubeinvaders" then
-        delete_job = "kubectl delete job " .. v2["metadata"]["name"] .. " --token=" .. token .. " --server=" .. k8s_url .. " --insecure-skip-tls-verify=true -n " .. namespace
-        ngx.log(ngx.INFO, delete_pod)
-      end
+local joblist_ok, joblist_err = pcall(function() decoded = json.decode(table.concat(resp)) end)
+if joblist_ok and decoded and decoded["kind"] == "JobList" then
+  for k2,v2 in ipairs(decoded["items"]) do
+    if v2["status"]["succeeded"] == 1 and v2["metadata"]["labels"]["chaos-controller"] == "kubeinvaders" then
+      delete_job = "kubectl delete job " .. v2["metadata"]["name"] .. " --token=" .. token .. " --server=" .. k8s_url .. " --insecure-skip-tls-verify=true -n " .. namespace
+      ngx.log(ngx.INFO, delete_job)
     end
   end
 end
@@ -236,14 +235,12 @@ ngx.log(ngx.INFO, ok)
 ngx.log(ngx.INFO, statusCode)
 ngx.log(ngx.INFO, statusText)
 
-for k,v in ipairs(resp) do
-  decoded = json.decode(v)
-  if decoded["kind"] == "PodList" then
-    for k2,v2 in ipairs(decoded["items"]) do
-      if v2["status"]["phase"] == "Succeeded" and v2["metadata"]["labels"]["chaos-controller"] == "kubeinvaders" then
-        delete_pod = "kubectl delete pod " .. v2["metadata"]["name"] .. " --token=" .. token .. " --server=" .. k8s_url .. " --insecure-skip-tls-verify=true -n " .. namespace
-        ngx.log(ngx.INFO, delete_pod)
-      end
+local podlist_ok, podlist_err = pcall(function() decoded = json.decode(table.concat(resp)) end)
+if podlist_ok and decoded and decoded["kind"] == "PodList" then
+  for k2,v2 in ipairs(decoded["items"]) do
+    if v2["status"]["phase"] == "Succeeded" and v2["metadata"]["labels"]["chaos-controller"] == "kubeinvaders" then
+      delete_pod = "kubectl delete pod " .. v2["metadata"]["name"] .. " --token=" .. token .. " --server=" .. k8s_url .. " --insecure-skip-tls-verify=true -n " .. namespace
+      ngx.log(ngx.INFO, delete_pod)
     end
   end
 end

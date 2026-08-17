@@ -58,7 +58,8 @@ if target and target ~= "" then
   k8s_url = string.gsub(target, "/+$", "")
 end
 
-local token = req_headers["x-k8s-token"] or req_headers["X-K8S-Token"] or tostring(os.getenv("TOKEN") or "")
+local header_token = req_headers["x-k8s-token"] or req_headers["X-K8S-Token"]
+local token = (header_token and header_token ~= "") and header_token or tostring(os.getenv("TOKEN") or "")
 if token == "" then
   ngx.status = 500
   ngx.say("Missing Kubernetes API token configuration.")

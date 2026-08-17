@@ -23,7 +23,8 @@ local disable_tls = disable_tls_env == "true" or disable_tls_env == "1" or disab
 local arg = ngx.req.get_uri_args()
 local req_headers = ngx.req.get_headers()
 local target = arg['target'] or req_headers["x-k8s-target"] or req_headers["X-K8S-Target"]
-local token = req_headers["x-k8s-token"] or req_headers["X-K8S-Token"] or tostring(os.getenv("TOKEN") or "")
+local header_token = req_headers["x-k8s-token"] or req_headers["X-K8S-Token"]
+local token = (header_token and header_token ~= "") and header_token or tostring(os.getenv("TOKEN") or "")
 local ca_cert_b64 = req_headers["x-k8s-ca-cert-b64"] or req_headers["X-K8S-CA-CERT-B64"]
 local ca_cert = nil
 if ca_cert_b64 and ca_cert_b64 ~= "" then
@@ -133,17 +134,17 @@ ngx.log(ngx.INFO, statusCode)
 ngx.log(ngx.INFO, statusText)
 
 nodes["items"] = {}
-for k,v in ipairs(resp) do
-  ngx.log(ngx.INFO, k)
-  decoded = json.decode(v)
-  if decoded["kind"] == "NodeList" then
-    for k2,v2 in ipairs(decoded["items"]) do
-      -- TODO: masters should be included?
-      -- if not v2["metadata"]["labels"]["node-role.kubernetes.io/master"] then
-      ngx.log(ngx.INFO, "found node " .. v2["metadata"]["name"])
-      table.insert(nodes["items"], { name = v2["metadata"]["name"], status = "ready" })
-      --end
-    end
+local resp_body = table.concat(resp)
+local decode_ok, decode_err = pcall(function() decoded = json.decode(resp_body) end)
+if not decode_ok then
+  ngx.log(ngx.ERR, "[node.lua] JSON decode failed: " .. tostring(decode_err))
+elseif decoded and decoded["kind"] == "NodeList" then
+  for k2,v2 in ipairs(decoded["items"]) do
+    -- TODO: masters should be included?
+    -- if not v2["metadata"]["labels"]["node-role.kubernetes.io/master"] then
+    ngx.log(ngx.INFO, "found node " .. v2["metadata"]["name"])
+    table.insert(nodes["items"], { name = v2["metadata"]["name"], status = "ready" })
+    --end
   end
 end
 ngx.say(json.encode(nodes))

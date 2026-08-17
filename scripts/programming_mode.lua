@@ -10,7 +10,8 @@ local kube_port = os.getenv("KUBERNETES_SERVICE_PORT_HTTPS")
 local endpoint = os.getenv("ENDPOINT")
 local req_headers = ngx.req.get_headers()
 local target = arg["target"] or req_headers["x-k8s-target"] or req_headers["X-K8S-Target"]
-local token = req_headers["x-k8s-token"] or req_headers["X-K8S-Token"] or tostring(os.getenv("TOKEN") or "")
+local header_token = req_headers["x-k8s-token"] or req_headers["X-K8S-Token"]
+local token = (header_token and header_token ~= "") and header_token or tostring(os.getenv("TOKEN") or "")
 local ca_cert_b64 = req_headers["x-k8s-ca-cert-b64"] or req_headers["X-K8S-CA-CERT-B64"]
 
 if kube_host and kube_host ~= "" then
