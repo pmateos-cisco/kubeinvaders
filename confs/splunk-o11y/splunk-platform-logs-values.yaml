@@ -1,0 +1,27 @@
+# Values to merge into the existing `splunk-otel-collector` Helm release
+# (namespace: default) to route K8s/container logs to Splunk Platform for
+# Log Observer Connect. Metrics/traces continue to Splunk Observability
+# Cloud unchanged - this only adds a second destination for logs.
+#
+# Log collection itself (logsCollection.containers.enabled) is already on
+# by default in this release; this just gives it somewhere to send logs.
+#
+# Apply with:
+#   helm upgrade splunk-otel-collector signalfx/splunk-otel-collector \
+#     -n default -f <existing-values> -f splunk-platform-logs-values.yaml
+#
+# See ../README.md for the full checklist of what to request from whoever
+# manages the target Splunk Enterprise/Cloud instance before filling this in.
+#
+# DO NOT fill in the real token here and commit it. Copy this file to
+# splunk-platform-logs-values.local.yaml (gitignored) and fill that in
+# instead, or pass --set splunkPlatform.token=<token> directly on the
+# helm command line so it never touches disk.
+
+splunkPlatform:
+  endpoint: "REPLACE_ME_HEC_ENDPOINT"    # e.g. https://your-splunk-host:8088/services/collector
+                                          # or https://http-inputs-<stack>.splunkcloud.com:443/services/collector
+  token: "REPLACE_ME_HEC_TOKEN"
+  index: "REPLACE_ME_INDEX"              # must match whatever index Log Observer Connect is scoped to read
+  logsEnabled: true
+  # insecureSkipVerify: true             # uncomment only if the HEC endpoint uses a self-signed cert (lab-only)
