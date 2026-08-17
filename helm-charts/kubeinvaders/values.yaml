@@ -5,8 +5,11 @@
 nameOverride: ""
 fullnameOverride: ""
 
-# Additional labels for resources
-additionalLabels: {}
+# Additional labels for resources - synced into Splunk O11y as properties
+# via the cluster-wide collector's k8s_cluster receiver (metadata_exporters).
+additionalLabels:
+  app: kubeinvaders
+  environment: lab
 
 config:
   # target_namespace where kubeinvaders should be allowed to kill pods
@@ -79,6 +82,7 @@ otelSidecar:
   image: quay.io/signalfx/splunk-otel-collector:0.150.0
   redisEndpoint: "127.0.0.1:6379"
   nginxStatusEndpoint: "http://127.0.0.1:8080/nginx_status"
+  prometheusTarget: "127.0.0.1:8080"
   app: kubeinvaders
   environment: lab
   realm: us1
