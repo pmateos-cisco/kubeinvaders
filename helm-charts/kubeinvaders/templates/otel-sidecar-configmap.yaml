@@ -1,24 +1,27 @@
-{{- if .Values.redisMonitoring.enabled }}
+{{- if .Values.otelSidecar.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "kubeinvaders.fullname" . }}-redis-otel-config
+  name: {{ include "kubeinvaders.fullname" . }}-otel-sidecar-config
 data:
   config.yaml: |
     receivers:
       redis:
-        endpoint: {{ .Values.redisMonitoring.redisEndpoint }}
+        endpoint: {{ .Values.otelSidecar.redisEndpoint }}
+        collection_interval: 10s
+      nginx:
+        endpoint: {{ .Values.otelSidecar.nginxStatusEndpoint }}
         collection_interval: 10s
     processors:
       batch: {}
     exporters:
       signalfx:
         access_token: ${env:SPLUNK_ACCESS_TOKEN}
-        realm: {{ .Values.redisMonitoring.realm }}
+        realm: {{ .Values.otelSidecar.realm }}
     service:
       pipelines:
         metrics:
-          receivers: [redis]
+          receivers: [redis, nginx]
           processors: [batch]
           exporters: [signalfx]
 {{- end }}

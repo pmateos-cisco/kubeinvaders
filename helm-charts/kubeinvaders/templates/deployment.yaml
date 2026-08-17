@@ -70,33 +70,33 @@ spec:
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-        {{- if .Values.redisMonitoring.enabled }}
-        - name: redis-otel-sidecar
-          image: {{ .Values.redisMonitoring.image }}
+        {{- if .Values.otelSidecar.enabled }}
+        - name: otel-sidecar
+          image: {{ .Values.otelSidecar.image }}
           args: ["--config=/etc/otelcol/config.yaml"]
           env:
             - name: SPLUNK_ACCESS_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.redisMonitoring.accessTokenSecretName }}
-                  key: {{ .Values.redisMonitoring.accessTokenSecretKey }}
+                  name: {{ .Values.otelSidecar.accessTokenSecretName }}
+                  key: {{ .Values.otelSidecar.accessTokenSecretKey }}
           volumeMounts:
-            - name: redis-otel-config
+            - name: otel-sidecar-config
               mountPath: /etc/otelcol
         {{- end }}
       {{- with .Values.deployment.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or .Values.deployment.extraVolumes .Values.redisMonitoring.enabled }}
+      {{- if or .Values.deployment.extraVolumes .Values.otelSidecar.enabled }}
       volumes:
         {{- with .Values.deployment.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- if .Values.redisMonitoring.enabled }}
-        - name: redis-otel-config
+        {{- if .Values.otelSidecar.enabled }}
+        - name: otel-sidecar-config
           configMap:
-            name: {{ include "kubeinvaders.fullname" . }}-redis-otel-config
+            name: {{ include "kubeinvaders.fullname" . }}-otel-sidecar-config
         {{- end }}
       {{- end }}
       {{- with .Values.deployment.affinity }}
