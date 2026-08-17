@@ -1,0 +1,24 @@
+{{- if .Values.redisMonitoring.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubeinvaders.fullname" . }}-redis-otel-config
+data:
+  config.yaml: |
+    receivers:
+      redis:
+        endpoint: {{ .Values.redisMonitoring.redisEndpoint }}
+        collection_interval: 10s
+    processors:
+      batch: {}
+    exporters:
+      signalfx:
+        access_token: ${env:SPLUNK_ACCESS_TOKEN}
+        realm: {{ .Values.redisMonitoring.realm }}
+    service:
+      pipelines:
+        metrics:
+          receivers: [redis]
+          processors: [batch]
+          exporters: [signalfx]
+{{- end }}

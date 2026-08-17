@@ -5,6 +5,17 @@
     <title>KubeInvaders</title>
     <link rel="icon" type="image/x-icon" href="./images/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="https://cdn.signalfx.com/o11y-gdi-rum/latest/splunk-otel-web.js" crossorigin="anonymous"></script>
+    <script>
+      window.SplunkRum && window.SplunkRum.init({
+        realm: "us1",
+        rumAccessToken: "rum_access_token_placeholder",
+        applicationName: "kubeinvaders",
+        deploymentEnvironment: "lab",
+      });
+    </script>
+
     <link rel="stylesheet" href="./bootstrap-5.0.0-dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="./all.min.css">

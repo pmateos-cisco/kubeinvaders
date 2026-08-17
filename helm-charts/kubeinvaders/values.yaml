@@ -73,3 +73,11 @@ route_host: ""
 
 serviceMonitor:
   enabled: false
+
+redisMonitoring:
+  enabled: false
+  image: quay.io/signalfx/splunk-otel-collector:0.150.0
+  redisEndpoint: "127.0.0.1:6379"
+  realm: us1
+  accessTokenSecretName: ""
+  accessTokenSecretKey: "SPLUNK_ACCESS_TOKEN"

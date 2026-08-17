@@ -70,13 +70,34 @@ spec:
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+        {{- if .Values.redisMonitoring.enabled }}
+        - name: redis-otel-sidecar
+          image: {{ .Values.redisMonitoring.image }}
+          args: ["--config=/etc/otelcol/config.yaml"]
+          env:
+            - name: SPLUNK_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redisMonitoring.accessTokenSecretName }}
+                  key: {{ .Values.redisMonitoring.accessTokenSecretKey }}
+          volumeMounts:
+            - name: redis-otel-config
+              mountPath: /etc/otelcol
+        {{- end }}
       {{- with .Values.deployment.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.deployment.extraVolumes }} 
+      {{- if or .Values.deployment.extraVolumes .Values.redisMonitoring.enabled }}
       volumes:
+        {{- with .Values.deployment.extraVolumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.redisMonitoring.enabled }}
+        - name: redis-otel-config
+          configMap:
+            name: {{ include "kubeinvaders.fullname" . }}-redis-otel-config
+        {{- end }}
       {{- end }}
       {{- with .Values.deployment.affinity }}
       affinity:
